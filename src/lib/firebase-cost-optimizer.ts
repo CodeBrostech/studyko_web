@@ -150,7 +150,7 @@ export async function getPaginatedUsers(
   const snapshot = await query.get();
   
   return {
-    users: snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })),
+    users: snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })),
     lastDocId: snapshot.docs[snapshot.docs.length - 1]?.id,
     hasMore: snapshot.docs.length === limit,
   };
@@ -189,7 +189,7 @@ export async function getUsersListMinimal() {
     .limit(20)
     .get();
 
-  return snapshot.docs.map(doc => ({
+  return snapshot.docs.map((doc: any) => ({
     id: doc.id,
     ...doc.data()
   }));
@@ -215,7 +215,7 @@ export async function getRecentActivity(days: number = 7) {
     .limit(100)
     .get();
 
-  return snapshot.docs.map(doc => doc.data());
+  return snapshot.docs.map((doc: any) => doc.data());
 }
 
 /**
@@ -235,7 +235,7 @@ export async function getActiveRooms() {
     .limit(20)
     .get();
 
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
 }
 
 /**

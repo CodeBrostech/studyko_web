@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     }
 
     // Count subscriptions by month
-    premiumUsersSnapshot.docs.forEach((doc) => {
+    premiumUsersSnapshot.docs.forEach((doc: any) => {
       const data = doc.data();
       const premiumStartedAt = data.premiumStartedAt?.toDate();
       const premiumType = data.premiumType || 'monthly';

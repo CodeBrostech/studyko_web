@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const usersSnapshot = await adminDb.collection('users').limit(10).get();
     
-    const users = usersSnapshot.docs.map(doc => ({
+    const users = usersSnapshot.docs.map((doc: any) => ({
       id: doc.id,
       ...doc.data(),
     }));
