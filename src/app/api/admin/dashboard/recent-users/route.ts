@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       .limit(5)
       .get();
 
-    const recentUsers = usersSnapshot.docs.map((doc) => {
+    const recentUsers = usersSnapshot.docs.map((doc: any) => {
       const data = doc.data();
       return {
         id: doc.id,
