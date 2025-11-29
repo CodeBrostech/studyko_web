@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase-client';
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, sendPasswordResetEmail } from 'firebase/auth';
 import { FiMail, FiLock, FiAlertCircle } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 
@@ -13,6 +13,32 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setError('Lütfen e-posta adresinizi girin.');
+      return;
+    }
+    
+    setError('');
+    setLoading(true);
+    
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetEmailSent(true);
+      setError('');
+    } catch (err: any) {
+      console.error('Şifre sıfırlama hatası:', err);
+      if (err.code === 'auth/user-not-found') {
+        setError('Bu e-posta adresiyle kayıtlı kullanıcı bulunamadı.');
+      } else {
+        setError(`Şifre sıfırlama başarısız: ${err.message}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,7 +66,8 @@ export default function AdminLoginPage() {
       
       if (response.ok) {
         console.log('Admin doğrulandı, yönlendiriliyor...');
-        router.push('/admin');
+        // Force hard redirect to ensure cookie is processed
+        window.location.href = '/admin';
       } else {
         const errorData = await response.json();
         console.error('Admin doğrulama hatası:', errorData);
@@ -69,25 +96,58 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
+      console.log('Google ile giriş başlatılıyor...');
       const provider = new GoogleAuthProvider();
+      
+      // Prompt user to select account every time
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      
       const userCredential = await signInWithPopup(auth, provider);
+      console.log('Google giriş başarılı:', userCredential.user.email);
+      
       const idToken = await userCredential.user.getIdToken();
+      console.log('Token alındı');
       
       // Store token in cookie
       document.cookie = `admin-token=${idToken}; path=/; max-age=3600`;
       
       // Check if user is admin
+      console.log('Admin kontrolü yapılıyor...');
       const response = await fetch('/api/admin/verify', {
         headers: { Authorization: `Bearer ${idToken}` },
       });
 
+      console.log('Verify response status:', response.status);
+
       if (response.ok) {
-        router.push('/admin');
+        console.log('Admin doğrulandı, yönlendiriliyor...');
+        // Force hard redirect to ensure cookie is processed
+        window.location.href = '/admin';
       } else {
-        setError('Bu hesap admin yetkisine sahip değil.');
+        const errorData = await response.json();
+        console.error('Admin doğrulama hatası:', errorData);
+        setError(`Bu hesap admin yetkisine sahip değil. (${userCredential.user.email})\n\nYetkili admin hesabı ile giriş yapmalısınız.`);
+        
+        // Sign out user since they're not admin
+        await auth.signOut();
       }
     } catch (err: any) {
-      setError('Google ile giriş başarısız.');
+      console.error('Google giriş hatası:', err);
+      
+      if (err.code === 'auth/popup-closed-by-user') {
+        setError('Giriş penceresi kapatıldı. Lütfen tekrar deneyin.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Popup engellendi. Lütfen tarayıcınızın popup ayarlarını kontrol edin.');
+      } else if (err.code === 'auth/cancelled-popup-request') {
+        // User cancelled, don't show error
+        setError('');
+      } else if (err.code === 'auth/unauthorized-domain') {
+        setError('Bu domain Google Auth için yetkili değil. Firebase Console\'da domain\'i ekleyin.');
+      } else {
+        setError(`Google ile giriş başarısız: ${err.message}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -106,6 +166,14 @@ export default function AdminLoginPage() {
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start">
               <FiAlertCircle className="w-5 h-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
               <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+
+          {resetEmailSent && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-green-800 text-sm">
+                ✓ Şifre sıfırlama e-postası gönderildi. Lütfen e-postanızı kontrol edin.
+              </p>
             </div>
           )}
 
@@ -138,6 +206,14 @@ export default function AdminLoginPage() {
                 placeholder="••••••••"
                 required
               />
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                className="text-sm text-blue-600 hover:text-blue-800 mt-1 float-right"
+                disabled={loading}
+              >
+                Şifremi Unuttum
+              </button>
             </div>
 
             <button
