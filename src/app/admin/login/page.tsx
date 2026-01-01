@@ -16,12 +16,20 @@ export default function AdminLoginPage() {
   const [resetEmailSent, setResetEmailSent] = useState(false);
 
   const handlePasswordReset = async () => {
-    if (!email) {
+    if (!email || !email.trim()) {
       setError('Lütfen e-posta adresinizi girin.');
       return;
     }
     
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Geçerli bir e-posta adresi girin.');
+      return;
+    }
+    
     setError('');
+    setResetEmailSent(false);
     setLoading(true);
     
     try {
@@ -32,6 +40,8 @@ export default function AdminLoginPage() {
       console.error('Şifre sıfırlama hatası:', err);
       if (err.code === 'auth/user-not-found') {
         setError('Bu e-posta adresiyle kayıtlı kullanıcı bulunamadı.');
+      } else if (err.code === 'auth/invalid-email') {
+        setError('Geçersiz e-posta adresi formatı.');
       } else {
         setError(`Şifre sıfırlama başarısız: ${err.message}`);
       }
